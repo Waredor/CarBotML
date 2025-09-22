@@ -1,0 +1,11 @@
+output_dir_for_data: D:\Python projects\CarBotML\data
+class_name: css-1f68fiz ea1vuk60
+
+url_dict:
+  khv: https://habarovsk.drom.ru/toyota/all/
+  vdk: https://vladivostok.drom.ru/toyota/all/
+  blg: https://blagoveshchensk.drom.ru/toyota/all/
+
+headers:
+  Accept: text/html
+  User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36
