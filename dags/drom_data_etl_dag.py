@@ -1,12 +1,15 @@
 import os
 import sys
 import logging
+import pickle
 import yaml
 import pandas as pd
 
 from datetime import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.operators.bash import BashOperator
+from sklearn.preprocessing import MinMaxScaler
 
 
 # PROJECT ROOT INIT
@@ -20,14 +23,11 @@ def get_project_root(start_path):
         current = os.path.dirname(current)
     raise FileNotFoundError("Project root was not found")
 
-
 project_root = get_project_root(init_path)
 sys.path.insert(0, project_root)
 
 from utils.parser import Parser
 from utils.data_preprocessor import process_data
-
-
 
 # LOGGER INIT
 stream_handler = logging.StreamHandler()
@@ -74,6 +74,7 @@ with DAG(
 
         output_dir_for_data = config_data['output_dir_for_data']
         annotated_data_filepath = os.path.join(output_dir_for_data, 'annotated_data.csv')
+        features_scaler_filepath = os.path.join(output_dir_for_data, 'x_scaler.pkl')
         logger.info(f'Output dir: {output_dir_for_data}, Annotated file: {annotated_data_filepath}')
 
         headers = config_data['headers']
@@ -97,6 +98,7 @@ with DAG(
 
         kwargs['ti'].xcom_push(key='output_dir_for_data', value=output_dir_for_data)
         kwargs['ti'].xcom_push(key='annotated_data_filepath', value=annotated_data_filepath)
+        kwargs['ti'].xcom_push(key='x_scaler_filepath', value=features_scaler_filepath)
 
 
     def preprocess_data(**kwargs) -> None:
@@ -132,7 +134,10 @@ with DAG(
         ti = kwargs['ti']
         annotated_data_filepath = ti.xcom_pull(key='annotated_data_filepath', task_ids='parse_data_task')
         output_dir_for_data = ti.xcom_pull(key='output_dir_for_data', task_ids='parse_data_task')
+        features_scaler_filepath = ti.xcom_pull(key='x_scaler_filepath', task_ids='parse_data_task')
         preprocessed_data_filepath = os.path.join(output_dir_for_data, 'preprocessed_data.csv')
+        scaled_data_filepath = os.path.join(output_dir_for_data, 'scaled_data.csv')
+        columns_list_filepath = os.path.join(output_dir_for_data, 'data_columns.pkl')
 
         logger.info('Starting feature engineering')
         try:
@@ -152,14 +157,31 @@ with DAG(
 
             model_counts = df['model_name'].value_counts()
 
-            df['price_per_mileage'] = df['price'] / df['odo']
+            df['price_per_mileage'] = df.apply(
+                lambda row: row['price'] / row['odo'] if row['odo'] > 0 else 0, axis=1
+            )
             df['model_selling_frequency'] = df['model_name'].map(model_counts)
 
             one_hot_encoded_model = pd.get_dummies(df['model_name'], prefix='model', dtype='int')
             df = pd.concat([df, one_hot_encoded_model], axis=1)
 
-            df.drop(columns=['fuel_type', 'transmission', 'car_model', 'car_manufacturer', 'id', 'model_name'], inplace=True)
+            df.drop(columns=['fuel_type', 'transmission', 'car_model', 'car_manufacturer', 'id', 'model_name'],
+                    inplace=True)
 
+            features_scaler = MinMaxScaler()
+            columns = df.columns
+            x = features_scaler.fit_transform(df)
+            scaled_df = pd.DataFrame(data=x, columns=columns)
+
+            columns = columns.tolist()
+
+            with open(features_scaler_filepath, 'wb') as f:
+                pickle.dump(features_scaler, f)
+
+            with open(columns_list_filepath, 'wb') as f:
+                pickle.dump(columns, f)
+
+            scaled_df.to_csv(scaled_data_filepath, index=False)
             df.to_csv(preprocessed_data_filepath, index=False)
             logger.info('Feature engineering completed')
         except Exception as e:
@@ -185,4 +207,10 @@ with DAG(
         provide_context=True,
     )
 
-    parse_task >> preprocess_task >> feature_engineering_task
+    restart_services_task = BashOperator(
+        task_id='restart_services_task',
+        bash_command='docker-compose -f /opt/airflow/docker-compose.yml restart fastapi streamlit',
+        dag=dag,
+    )
+
+    parse_task >> preprocess_task >> feature_engineering_task >> restart_services_task

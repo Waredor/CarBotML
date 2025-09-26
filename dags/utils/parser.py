@@ -20,10 +20,10 @@ class Parser:
         logger.info(f'Initialized Parser with class_name={class_name}, urls={base_url_dict}')
 
     @sleep_and_retry
-    @limits(calls=10, period=60)
+    @limits(calls=2, period=60)
     def parse_by_url(self, url: str, tag: str) -> tuple:
         logger.info(f'Fetching URL: {url}')
-        time.sleep(random.uniform(1, 5))
+        time.sleep(random.uniform(20, 40))
         src = requests.get(url, headers=self.req_headers)
         logger.info(f'Response status code: {src.status_code}')
         if src.status_code != 200:
