@@ -4,13 +4,12 @@ import logging
 import pickle
 import yaml
 import pandas as pd
+import docker
 
 from datetime import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.operators.bash import BashOperator
 from sklearn.preprocessing import MinMaxScaler
-
 
 # PROJECT ROOT INIT
 init_path = os.path.abspath(__file__)
@@ -50,7 +49,7 @@ with DAG(
     default_args=default_args,
     description='DAG пайплайна парсинга данных drom.ru',
     schedule='@daily',
-    start_date=datetime(2025, 9, 17),  # Установлено на 2025-09-17
+    start_date=datetime(2025, 9, 17),
     catchup=False,
 ) as dag:
     def parse_data(**kwargs) -> None:
@@ -189,6 +188,22 @@ with DAG(
             raise
 
 
+    def restart_services(**kwargs) -> None:
+        """
+        Перезапускает сервисы fastapi и streamlit через Docker API.
+        """
+        logger.info('Restarting fastapi and streamlit services')
+        try:
+            client = docker.from_env()
+            for service in ['carbot_ml-fastapi-1', 'carbot_ml-streamlit-1']:
+                container = client.containers.get(service)
+                container.restart()
+                logger.info(f'Successfully restarted {service}')
+        except Exception as e:
+            logger.error(f'Failed to restart services: {e}')
+            raise
+
+
     parse_task = PythonOperator(
         task_id='parse_data_task',
         python_callable=parse_data,
@@ -207,10 +222,10 @@ with DAG(
         provide_context=True,
     )
 
-    restart_services_task = BashOperator(
+    restart_services_task = PythonOperator(
         task_id='restart_services_task',
-        bash_command='docker-compose -f /opt/airflow/docker-compose.yml restart fastapi streamlit',
-        dag=dag,
+        python_callable=restart_services,
+        provide_context=True,
     )
 
     parse_task >> preprocess_task >> feature_engineering_task >> restart_services_task
