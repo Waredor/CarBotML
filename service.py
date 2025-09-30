@@ -70,7 +70,14 @@ async def create_recommendation(data: ClientData, request: Request):
         raise
 
     filtered_df_preprocessed = preprocessed_df[preprocessed_df['price'] <= data.price]
-    filtered_df = df[df['price'] <= data.price]
+
+    city_condition = (
+            (data.city == 'Хабаровск') & (df['khv'] == 1) |
+            (data.city == 'Владивосток') & (df['vdk'] == 1) |
+            (data.city == 'Благовещенск') & (df['blg'] == 1)
+    )
+
+    filtered_df = df[(df['price'] <= data.price) & city_condition]
     logger.debug(f"Filtered preprocessed df size: {len(filtered_df_preprocessed)}")
     logger.debug(f"Filtered annotated df size: {len(filtered_df)}")
 

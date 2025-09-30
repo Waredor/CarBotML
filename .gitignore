@@ -4,5 +4,3 @@ __pycache__/
 dags/__pycache__/
 dags/utils/__pycache__/
 .idea/
-data/
-logs/
