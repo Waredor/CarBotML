@@ -1,4 +1,4 @@
-output_dir_for_data: /root/projects/CarBotML/data
+output_dir_for_data: /opt/airflow/data
 class_name: css-1f68fiz ea1vuk60
 
 url_dict:

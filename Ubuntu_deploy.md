@@ -119,6 +119,7 @@ chmod 664 gunicorn.conf.py
 Добавьте следующее содержимое:
 ```python
 workers = 4
+worker_class = "uvicorn.workers.UvicornWorker"
 bind = "0.0.0.0:8000"
 timeout = 120
 ```
