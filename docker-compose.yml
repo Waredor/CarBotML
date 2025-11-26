@@ -6,21 +6,20 @@ services:
       dockerfile: Dockerfile.fastapi
     volumes:
       - ./data:/app/data
+      - ./data:/opt/airflow/data
       - ./gunicorn.conf.py:/app/gunicorn.conf.py
     ports:
       - "8000:8000"
     restart: always
 
-  streamlit:
+  telebot:
     build:
       context: .
-      dockerfile: Dockerfile.streamlit
+      dockerfile: Dockerfile.telebot
     volumes:
       - ./data:/app/data
-    ports:
-      - "8501:8501"
+      - ./data:/opt/airflow/data
     environment:
-      - STREAMLIT_SERVER_ENABLE_CORS=false
       - API_URL=http://fastapi:8000/create_recommendation
     depends_on:
       - fastapi

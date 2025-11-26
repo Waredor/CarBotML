@@ -2,6 +2,8 @@ import os
 import sys
 import logging
 import pickle
+import time
+
 import yaml
 import pandas as pd
 import docker
@@ -164,15 +166,26 @@ with DAG(
             one_hot_encoded_model = pd.get_dummies(df['model_name'], prefix='model', dtype='int')
             df = pd.concat([df, one_hot_encoded_model], axis=1)
 
-            df.drop(columns=['fuel_type', 'transmission', 'car_model', 'car_manufacturer', 'id', 'model_name'],
-                    inplace=True)
+            df = df.dropna(subset=['price', 'odo'])
+            df['model_selling_frequency'] = df['model_selling_frequency'].fillna(1)
+            logger.info(f"NaN counts after fillna: {df.isna().sum().sum()}")
+
+            dropped_df = df.drop(columns=['fuel_type', 'transmission', 'car_model', 'car_manufacturer', 'id', 'model_name'],
+                    inplace=False)
 
             features_scaler = MinMaxScaler()
-            columns = df.columns
-            x = features_scaler.fit_transform(df)
+            columns = dropped_df.columns
+            x = features_scaler.fit_transform(dropped_df)
             scaled_df = pd.DataFrame(data=x, columns=columns)
 
             columns = columns.tolist()
+
+            logger.info(f"Preprocessed price max: {df['price'].max()}, "
+                        f"min: {df['price'].min()}")
+            logger.info(f"Scaled price max: {scaled_df['price'].max()}, "
+                        f"min: {scaled_df['price'].min()}")
+            logger.info(f"Initial datafrtame size: {len(df)},"
+                        f"Preprocessed df size: {len(dropped_df)}")
 
             with open(features_scaler_filepath, 'wb') as f:
                 pickle.dump(features_scaler, f)
@@ -180,8 +193,9 @@ with DAG(
             with open(columns_list_filepath, 'wb') as f:
                 pickle.dump(columns, f)
 
+            df.to_csv(annotated_data_filepath, index=False)
             scaled_df.to_csv(scaled_data_filepath, index=False)
-            df.to_csv(preprocessed_data_filepath, index=False)
+            dropped_df.to_csv(preprocessed_data_filepath, index=False)
             logger.info('Feature engineering completed')
         except Exception as e:
             logger.error(f'Error in feature_engineering: {e}')
@@ -194,8 +208,10 @@ with DAG(
         """
         logger.info('Restarting fastapi and streamlit services')
         try:
+            os.sync()
+            time.sleep(5)
             client = docker.from_env()
-            for service in ['carbot_ml-fastapi-1', 'carbot_ml-streamlit-1']:
+            for service in ['carbotml-fastapi-1', 'carbotml-telebot-1']:
                 container = client.containers.get(service)
                 container.restart()
                 logger.info(f'Successfully restarted {service}')
