@@ -58,7 +58,7 @@ initial_prompt_template = PromptTemplate(
     template='''
     {format_instructions}
 
-    ТЫ — СИСТЕМА ПАРСИНГА. ИЗВЛЕЧЬ ПАРАМЕТРЫ АВТОМОБИЛЯ ИЗ ТЕКСТА.
+    ТЫ — СИСТЕМА ПАРСИНГА. ИЗВЛЕКИ ПАРАМЕТРЫ АВТОМОБИЛЯ ИЗ ТЕКСТА.
     НИКАКИХ ПОЯСНЕНИЙ, НИКАКОГО ТЕКСТА ВНЕ JSON.
 
     ПРАВИЛА:
@@ -240,6 +240,10 @@ def handle_approval(message):
                     f"Подобрали для вас идеальный авто: {car_model} {year} года выпуска с пробегом {odo} км, "
                     f"коробкой передач {transmission}, двигателем {engine} за {price} рублей в городе {city}"
                 )
+                # bot.send_message(
+                    # chat_id,
+                    # "Вас устраивает данный выбор? (да/нет)"
+                # )
 
         except Exception:
             raise

@@ -206,7 +206,7 @@ with DAG(
         """
         Перезапускает сервисы fastapi и streamlit через Docker API.
         """
-        logger.info('Restarting fastapi and streamlit services')
+        logger.info('Restarting fastapi and telebot services')
         try:
             os.sync()
             time.sleep(5)

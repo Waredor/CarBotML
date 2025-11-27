@@ -57,8 +57,39 @@ def create_recommendation(data: ClientData):
             logger.error("Initial DataFrame sizes do not match")
             raise HTTPException(status_code=500, detail="Initial DataFrame sizes do not match")
 
-        filtered_df = df[df['price'] <= data.price]
-        filtered_df_preprocessed = preprocessed_df[preprocessed_df['price'] <= data.price]
+        if data.city == 'Хабаровск':
+            filtered_df = df[
+                (df['price'] <= data.price) &
+                (df['khv'] == 1)
+            ]
+            filtered_df_preprocessed = preprocessed_df[
+                (preprocessed_df['price'] <= data.price) &
+                (preprocessed_df['khv'] == 1)
+            ]
+
+        elif data.city == 'Владивосток':
+            filtered_df = df[
+                (df['price'] <= data.price) &
+                (df['vdk'] == 1)
+            ]
+            filtered_df_preprocessed = preprocessed_df[
+                (preprocessed_df['price'] <= data.price) &
+                (preprocessed_df['vdk'] == 1)
+            ]
+
+        elif data.city == 'Благовещенск':
+            filtered_df = df[
+                (df['price'] <= data.price) &
+                (df['blg'] == 1)
+            ]
+            filtered_df_preprocessed = preprocessed_df[
+                (preprocessed_df['price'] <= data.price) &
+                (preprocessed_df['blg'] == 1)
+            ]
+
+        else:
+            filtered_df = df[df['price'] <= data.price]
+            filtered_df_preprocessed = preprocessed_df[preprocessed_df['price'] <= data.price]
 
         logger.info(f"filtered_df length: {len(filtered_df)}")
         logger.info(f"filtered_df_preprocessed length: {len(filtered_df_preprocessed)}")
@@ -120,7 +151,7 @@ def create_recommendation(data: ClientData):
             logger.warning("No valid indices found for recommendations")
             return {'recommendation': []}
 
-        recommendations = df.iloc[valid_indices].copy()
+        recommendations = filtered_df.iloc[valid_indices].copy()
         recommendations['distance'] = distances[0][:len(valid_indices)]
         logger.debug("Recommendations prepared")
 
